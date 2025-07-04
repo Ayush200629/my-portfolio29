@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escape the Maze: AI Guards Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%);
+            color: #fff;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .game-canvas {
+            border: 2px solid #00ffff;
+            background: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            position: relative;
+        }
+
+        .hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #00ffff;
+        }
+
+        .hud-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .progress-bar {
+            width: 100px;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            margin-left: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 0.1s;
+        }
+
+        .energy-fill { background: linear-gradient(90deg, #ff6b6b, #ffd93d); }
+        .flashlight-fill { background: linear-gradient(90deg, #74b9ff, #00cec9); }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: none;
+            z-index: 10;
+        }
+
+        .control-btn {
+            background: rgba(0, 255, 255, 0.2);
+            border: 2px solid #00ffff;
+            color: #fff;
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background: rgba(0, 255, 255, 0.4);
+            transform: scale(1.1);
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid #00ffff;
+            text-align: center;
+            display: none;
+            z-index: 20;
+        }
+
+        .restart-btn {
+            background: linear-gradient(45deg, #00ffff, #0080ff);
+            border: none;
+            color: #000;
+            padding: 12px 24px;
+            margin-top: 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: transform 0.2s;
+        }
+
+        .restart-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .instructions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #00ffff;
+            font-size: 12px;
+            max-width: 200px;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                display: block;
+            }
+            
+            .instructions {
+                font-size: 10px;
+                max-width: 150px;
+            }
+        }
+
+        .level-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: #00ffff;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+            z-index: 15;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" class="game-canvas" width="800" height="600"></canvas>
+        
+        <div class="hud">
+            <div class="hud-item">
+                <span>🕐 Time:</span>
+                <span id="timeDisplay">60</span>
+            </div>
+            <div class="hud-item">
+                <span>⚡ Energy:</span>
+                <div class="progress-bar">
+                    <div class="progress-fill energy-fill" id="energyBar"></div>
+                </div>
+            </div>
+            <div class="hud-item">
+                <span>🔦 Battery:</span>
+                <div class="progress-bar">
+                    <div class="progress-fill flashlight-fill" id="flashlightBar"></div>
+                </div>
+            </div>
+            <div class="hud-item">
+                <span>🔑 Keys:</span>
+                <span id="keyCount">0</span>
+            </div>
+            <div class="hud-item">
+                <span>📍 Level:</span>
+                <span id="levelDisplay">1</span>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h4>Controls:</h4>
+            <p>WASD/Arrow Keys: Move</p>
+            <p>Shift: Run (uses energy)</p>
+            <p>F: Toggle flashlight</p>
+            <p>Space: Crouch (stealth)</p>
+            <p>Avoid red guards!</p>
+            <p>Collect keys & escape!</p>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" data-action="up">↑</button>
+            <button class="control-btn" data-action="down">↓</button>
+            <button class="control-btn" data-action="left">←</button>
+            <button class="control-btn" data-action="right">→</button>
+            <button class="control-btn" data-action="flashlight">🔦</button>
+            <button class="control-btn" data-action="crouch">🔽</button>
+        </div>
+
+        <div class="game-over" id="gameOver">
+            <h2 id="gameOverTitle">Game Over!</h2>
+            <p id="gameOverMessage">The guards caught you!</p>
+            <button class="restart-btn" onclick="initGame()">Play Again</button>
+        </div>
+
+        <div class="level-display" id="levelTransition">
+            Level 1
+        </div>
+    </div>
+
+    <script>
+        // Game constants
+        const CELL_SIZE = 20;
+        const MAZE_WIDTH = 40;
+        const MAZE_HEIGHT = 30;
+        const GUARD_SPEED = 0.8;
+        const PLAYER_SPEED = 2;
+        const VISION_RANGE = 4;
+        const DETECTION_RANGE = 1.5;
+
+        // Game state
+        let canvas, ctx;
+        let gameState = {
+            player: { x: 1, y: 1, energy: 100, flashlight: 100, keys: 0, crouching: false, running: false },
+            guards: [],
+            maze: [],
+            keys: [],
+            doors: [],
+            exit: { x: 0, y: 0 },
+            level: 1,
+            timeLeft: 60,
+            gameRunning: false,
+            flashlightOn: false,
+            keysPressed: {}
+        };
+
+        // Initialize game
+        function initGame() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            
+            // Reset game state
+            gameState = {
+                player: { x: 1, y: 1, energy: 100, flashlight: 100, keys: 0, crouching: false, running: false },
+                guards: [],
+                maze: [],
+                keys: [],
+                doors: [],
+                exit: { x: 0, y: 0 },
+                level: 1,
+                timeLeft: 60,
+                gameRunning: true,
+                flashlightOn: false,
+                keysPressed: {}
+            };
+
+            generateMaze();
+            setupLevel();
+            setupEventListeners();
+            gameLoop();
+            
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('levelTransition').style.display = 'none';
+        }
+
+        // Maze generation using DFS
+        function generateMaze() {
+            // Initialize maze with walls
+            gameState.maze = Array(MAZE_HEIGHT).fill().map(() => Array(MAZE_WIDTH).fill(1));
+            
+            // DFS maze generation
+            const stack = [];
+            const visited = Array(MAZE_HEIGHT).fill().map(() => Array(MAZE_WIDTH).fill(false));
+            
+            function getNeighbors(x, y) {
+                const neighbors = [];
+                const directions = [[0, 2], [2, 0], [0, -2], [-2, 0]];
+                
+                for (const [dx, dy] of directions) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx >= 0 && nx < MAZE_WIDTH && ny >= 0 && ny < MAZE_HEIGHT && !visited[ny][nx]) {
+                        neighbors.push([nx, ny]);
+                    }
+                }
+                return neighbors;
+            }
+            
+            // Start from (1, 1)
+            let current = [1, 1];
+            gameState.maze[1][1] = 0;
+            visited[1][1] = true;
+            stack.push(current);
+            
+            while (stack.length > 0) {
+                const neighbors = getNeighbors(current[0], current[1]);
+                
+                if (neighbors.length > 0) {
+                    const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    const wallX = (current[0] + next[0]) / 2;
+                    const wallY = (current[1] + next[1]) / 2;
+                    
+                    gameState.maze[wallY][wallX] = 0;
+                    gameState.maze[next[1]][next[0]] = 0;
+                    visited[next[1]][next[0]] = true;
+                    
+                    stack.push(next);
+                    current = next;
+                } else {
+                    current = stack.pop();
+                }
+            }
+        }
+
+        // Setup level with guards, keys, doors
+        function setupLevel() {
+            const level = gameState.level;
+            gameState.guards = [];
+            gameState.keys = [];
+            gameState.doors = [];
+            
+            // Find empty cells
+            const emptyCells = [];
+            for (let y = 0; y < MAZE_HEIGHT; y++) {
+                for (let x = 0; x < MAZE_WIDTH; x++) {
+                    if (gameState.maze[y][x] === 0) {
+                        emptyCells.push({ x, y });
+                    }
+                }
+            }
+            
+            // Place exit
+            const exitCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            gameState.exit = { x: exitCell.x, y: exitCell.y };
+            
+            // Place guards (more guards on higher levels)
+            const guardCount = Math.min(2 + level, 8);
+            for (let i = 0; i < guardCount; i++) {
+                const cell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                if (Math.abs(cell.x - gameState.player.x) > 5 || Math.abs(cell.y - gameState.player.y) > 5) {
+                    gameState.guards.push({
+                        x: cell.x,
+                        y: cell.y,
+                        targetX: cell.x,
+                        targetY: cell.y,
+                        patrolPath: [],
+                        patrolIndex: 0,
+                        alert: false,
+                        alertTime: 0,
+                        lastSeenPlayer: null,
+                        speed: GUARD_SPEED + (level - 1) * 0.2
+                    });
+                }
+            }
+            
+            // Generate patrol paths for guards
+            gameState.guards.forEach(guard => {
+                guard.patrolPath = generatePatrolPath(guard.x, guard.y);
+            });
+            
+            // Place keys
+            const keyCount = Math.min(1 + Math.floor(level / 2), 5);
+            for (let i = 0; i < keyCount; i++) {
+                const cell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                if (Math.abs(cell.x - gameState.player.x) > 3) {
+                    gameState.keys.push({ x: cell.x, y: cell.y });
+                }
+            }
+            
+            // Place doors
+            const doorCount = Math.min(keyCount, 3);
+            for (let i = 0; i < doorCount; i++) {
+                const cell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                if (Math.abs(cell.x - gameState.exit.x) > 3) {
+                    gameState.doors.push({ x: cell.x, y: cell.y });
+                }
+            }
+            
+            // Reset player position
+            gameState.player.x = 1;
+            gameState.player.y = 1;
+            gameState.player.energy = 100;
+            gameState.player.flashlight = 100;
+            gameState.timeLeft = 60 + (level - 1) * 10;
+        }
+
+        // Generate patrol path for guard
+        function generatePatrolPath(startX, startY) {
+            const path = [{ x: startX, y: startY }];
+            const visited = new Set();
+            visited.add(`${startX},${startY}`);
+            
+            let currentX = startX;
+            let currentY = startY;
+            
+            for (let i = 0; i < 5; i++) {
+                const neighbors = [];
+                const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+                
+                for (const [dx, dy] of directions) {
+                    const nx = currentX + dx;
+                    const ny = currentY + dy;
+                    const key = `${nx},${ny}`;
+                    
+                    if (nx >= 0 && nx < MAZE_WIDTH && ny >= 0 && ny < MAZE_HEIGHT && 
+                        gameState.maze[ny][nx] === 0 && !visited.has(key)) {
+                        neighbors.push({ x: nx, y: ny });
+                    }
+                }
+                
+                if (neighbors.length > 0) {
+                    const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    path.push(next);
+                    visited.add(`${next.x},${next.y}`);
+                    currentX = next.x;
+                    currentY = next.y;
+                } else {
+                    break;
+                }
+            }
+            
+            return path;
+        }
+
+        // AI pathfinding using A*
+        function findPath(startX, startY, endX, endY) {
+            const openSet = [{ x: startX, y: startY, f: 0, g: 0, h: 0, parent: null }];
+            const closedSet = new Set();
+            
+            function heuristic(x1, y1, x2, y2) {
+                return Math.abs(x1 - x2) + Math.abs(y1 - y2);
+            }
+            
+            while (openSet.length > 0) {
+                let current = openSet[0];
+                let currentIndex = 0;
+                
+                for (let i = 1; i < openSet.length; i++) {
+                    if (openSet[i].f < current.f) {
+                        current = openSet[i];
+                        currentIndex = i;
+                    }
+                }
+                
+                openSet.splice(currentIndex, 1);
+                closedSet.add(`${current.x},${current.y}`);
+                
+                if (current.x === endX && current.y === endY) {
+                    const path = [];
+                    let temp = current;
+                    while (temp) {
+                        path.push({ x: temp.x, y: temp.y });
+                        temp = temp.parent;
+                    }
+                    return path.reverse();
+                }
+                
+                const neighbors = [
+                    { x: current.x + 1, y: current.y },
+                    { x: current.x - 1, y: current.y },
+                    { x: current.x, y: current.y + 1 },
+                    { x: current.x, y: current.y - 1 }
+                ];
+                
+                for (const neighbor of neighbors) {
+                    if (neighbor.x < 0 || neighbor.x >= MAZE_WIDTH || 
+                        neighbor.y < 0 || neighbor.y >= MAZE_HEIGHT ||
+                        gameState.maze[neighbor.y][neighbor.x] === 1 ||
+                        closedSet.has(`${neighbor.x},${neighbor.y}`)) {
+                        continue;
+                    }
+                    
+                    const g = current.g + 1;
+                    const h = heuristic(neighbor.x, neighbor.y, endX, endY);
+                    const f = g + h;
+                    
+                    const existing = openSet.find(n => n.x === neighbor.x && n.y === neighbor.y);
+                    if (!existing || g < existing.g) {
+                        if (existing) {
+                            existing.g = g;
+                            existing.f = f;
+                            existing.parent = current;
+                        } else {
+                            openSet.push({ x: neighbor.x, y: neighbor.y, f, g, h, parent: current });
+                        }
+                    }
+                }
+            }
+            
+            return [];
+        }
+
+        // Update guards AI
+        function updateGuards() {
+            gameState.guards.forEach(guard => {
+                // Check if guard can see player
+                const distanceToPlayer = Math.sqrt(
+                    Math.pow(guard.x - gameState.player.x, 2) + 
+                    Math.pow(guard.y - gameState.player.y, 2)
+                );
+                
+                const canSeePlayer = distanceToPlayer <= VISION_RANGE && 
+                                   hasLineOfSight(guard.x, guard.y, gameState.player.x, gameState.player.y) &&
+                                   (gameState.flashlightOn || !gameState.player.crouching);
+                
+                if (canSeePlayer) {
+                    guard.alert = true;
+                    guard.alertTime = 180; // 3 seconds at 60fps
+                    guard.lastSeenPlayer = { x: gameState.player.x, y: gameState.player.y };
+                }
+                
+                // Update alert state
+                if (guard.alert) {
+                    guard.alertTime--;
+                    if (guard.alertTime <= 0) {
+                        guard.alert = false;
+                        guard.lastSeenPlayer = null;
+                    }
+                }
+                
+                // Movement logic
+                if (guard.alert && guard.lastSeenPlayer) {
+                    // Chase player
+                    const path = findPath(
+                        Math.round(guard.x), Math.round(guard.y),
+                        guard.lastSeenPlayer.x, guard.lastSeenPlayer.y
+                    );
+                    
+                    if (path.length > 1) {
+                        const nextStep = path[1];
+                        moveGuardTowards(guard, nextStep.x, nextStep.y);
+                    }
+                } else {
+                    // Patrol
+                    if (guard.patrolPath.length > 0) {
+                        const target = guard.patrolPath[guard.patrolIndex];
+                        const distance = Math.sqrt(
+                            Math.pow(guard.x - target.x, 2) + 
+                            Math.pow(guard.y - target.y, 2)
+                        );
+                        
+                        if (distance < 0.1) {
+                            guard.patrolIndex = (guard.patrolIndex + 1) % guard.patrolPath.length;
+                        } else {
+                            moveGuardTowards(guard, target.x, target.y);
+                        }
+                    }
+                }
+                
+                // Check if guard caught player
+                if (distanceToPlayer < DETECTION_RANGE) {
+                    gameOver(false);
+                }
+            });
+        }
+
+        // Move guard towards target
+        function moveGuardTowards(guard, targetX, targetY) {
+            const dx = targetX - guard.x;
+            const dy = targetY - guard.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > 0) {
+                const moveDistance = guard.speed * 0.016; // 60fps
+                guard.x += (dx / distance) * moveDistance;
+                guard.y += (dy / distance) * moveDistance;
+            }
+        }
+
+        // Check line of sight
+        function hasLineOfSight(x1, y1, x2, y2) {
+            const dx = Math.abs(x2 - x1);
+            const dy = Math.abs(y2 - y1);
+            const sx = x1 < x2 ? 1 : -1;
+            const sy = y1 < y2 ? 1 : -1;
+            let err = dx - dy;
+            
+            let x = Math.round(x1);
+            let y = Math.round(y1);
+            
+            while (true) {
+                if (x === Math.round(x2) && y === Math.round(y2)) return true;
+                if (x < 0 || x >= MAZE_WIDTH || y < 0 || y >= MAZE_HEIGHT) return false;
+                if (gameState.maze[y][x] === 1) return false;
+                
+                const e2 = 2 * err;
+                if (e2 > -dy) {
+                    err -= dy;
+                    x += sx;
+                }
+                if (e2 < dx) {
+                    err += dx;
+                    y += sy;
+                }
+            }
+        }
+
+        // Handle player movement
+        function updatePlayer() {
+            const moveSpeed = gameState.player.running ? PLAYER_SPEED * 1.5 : PLAYER_SPEED;
+            const energyDrain = gameState.player.running ? 0.5 : 0.1;
+            
+            let dx = 0;
+            let dy = 0;
+            
+            if (gameState.keysPressed['ArrowUp'] || gameState.keysPressed['w'] || gameState.keysPressed['W']) dy -= 1;
+            if (gameState.keysPressed['ArrowDown'] || gameState.keysPressed['s'] || gameState.keysPressed['S']) dy += 1;
+            if (gameState.keysPressed['ArrowLeft'] || gameState.keysPressed['a'] || gameState.keysPressed['A']) dx -= 1;
+            if (gameState.keysPressed['ArrowRight'] || gameState.keysPressed['d'] || gameState.keysPressed['D']) dx += 1;
+            
+            // Normalize diagonal movement
+            if (dx !== 0 && dy !== 0) {
+                dx *= 0.707;
+                dy *= 0.707;
+            }
+            
+            // Apply movement
+            if (dx !== 0 || dy !== 0) {
+                const newX = gameState.player.x + dx * moveSpeed * 0.016;
+                const newY = gameState.player.y + dy * moveSpeed * 0.016;
+                
+                // Check collision
+                if (canMoveTo(newX, newY)) {
+                    gameState.player.x = newX;
+                    gameState.player.y = newY;
+                    
+                    // Drain energy
+                    gameState.player.energy = Math.max(0, gameState.player.energy - energyDrain);
+                }
+            }
+            
+            // Regenerate energy when not moving
+            if (dx === 0 && dy === 0) {
+                gameState.player.energy = Math.min(100, gameState.player.energy + 0.2);
+            }
+            
+            // Update running state
+            gameState.player.running = gameState.keysPressed['Shift'] && gameState.player.energy > 0;
+            
+            // Handle flashlight
+            if (gameState.flashlightOn) {
+                gameState.player.flashlight = Math.max(0, gameState.player.flashlight - 0.1);
+                if (gameState.player.flashlight <= 0) {
+                    gameState.flashlightOn = false;
+                }
+            } else {
+                gameState.player.flashlight = Math.min(100, gameState.player.flashlight + 0.05);
+            }
+            
+            // Check key collection
+            gameState.keys = gameState.keys.filter(key => {
+                const distance = Math.sqrt(
+                    Math.pow(key.x - gameState.player.x, 2) + 
+                    Math.pow(key.y - gameState.player.y, 2)
+                );
+                if (distance < 0.5) {
+                    gameState.player.keys++;
+                    return false;
+                }
+                return true;
+            });
+            
+            // Check door interaction
+            gameState.doors = gameState.doors.filter(door => {
+                const distance = Math.sqrt(
+                    Math.pow(door.x - gameState.player.x, 2) + 
+                    Math.pow(door.y - gameState.player.y, 2)
+                );
+                if (distance < 0.5 && gameState.player.keys > 0) {
+                    gameState.player.keys--;
+                    return false;
+                }
+                return true;
+            });
+            
+            // Check exit
+            const exitDistance = Math.sqrt(
+                Math.pow(gameState.exit.x - gameState.player.x, 2) + 
+                Math.pow(gameState.exit.y - gameState.player.y, 2)
+            );
+            if (exitDistance < 0.5) {
+                nextLevel();
+            }
+        }
+
+        // Check if player can move to position
+        function canMoveTo(x, y) {
+            const cellX = Math.floor(x);
+            const cellY = Math.floor(y);
+            
+            if (cellX < 0 || cellX >= MAZE_WIDTH || cellY < 0 || cellY >= MAZE_HEIGHT) {
+                return false;
+            }
+            
+            // Check maze walls
+            if (gameState.maze[cellY][cellX] === 1) return false;
+            
+            // Check doors
+            for (const door of gameState.doors) {
+                if (Math.floor(door.x) === cellX && Math.floor(door.y) === cellY) {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+
+        // Advance to next level
+        function nextLevel() {
+            gameState.level++;
+            showLevelTransition();
+            
+            setTimeout(() => {
+                generateMaze();
+                setupLevel();
+                hideLevelTransition();
+            }, 2000);
+        }
+
+        // Show level transition
+        function showLevelTransition() {
+            const levelDiv = document.getElementById('levelTransition');
+            levelDiv.textContent = `Level ${gameState.level}`;
+            levelDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                levelDiv.style.display = 'none';
+            }, 2000);
+        }
+
+        // Hide level transition
+        function hideLevelTransition() {
+            document.getElementById('levelTransition').style.display = 'none';
+        }
+
+        // Game over
+        function gameOver(won) {
+            gameState.gameRunning = false;
+            const gameOverDiv = document.getElementById('gameOver');
+            const titleDiv = document.getElementById('gameOverTitle');
+            const messageDiv = document.getElementById('gameOverMessage');
+            
+            if (won) {
+                titleDiv.textContent = 'Congratulations!';
+                messageDiv.textContent = `You escaped! Level ${gameState.level} completed.`;
+            } else {
+                titleDiv.textContent = 'Game Over!';
+                messageDiv.textContent = 'The guards caught you! Try again.';
+            }
+            
+            gameOverDiv.style.display = 'block';
+        }
+
+        // Update timer
+        function updateTimer() {
+            gameState.timeLeft -= 1/60; // 60fps
+            if (gameState.timeLeft <= 0) {
+                gameOver(false);
+            }
+        }
+
+        // Update HUD
+        function updateHUD() {
+            document.getElementById('timeDisplay').textContent = Math.ceil(gameState.timeLeft);
+            document.getElementById('energyBar').style.width = gameState.player.energy + '%';
+            document.getElementById('flashlightBar').style.width = gameState.player.flashlight + '%';
+            document.getElementById('keyCount').textContent = gameState.player.keys;
+            document.getElementById('levelDisplay').textContent = gameState.level;
+        }
+
+        // Render game
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Calculate camera offset to center on player
+            const cameraX = gameState.player.x * CELL_SIZE - canvas.width / 2;
+            const cameraY = gameState.player.y * CELL_SIZE - canvas.height / 2;
+            
+            ctx.save();
+            ctx.translate(-cameraX, -cameraY);
+            
+            // Render maze
+            for (let y = 0; y < MAZE_HEIGHT; y++) {
+                for (let x = 0; x < MAZE_WIDTH; x++) {
+                    const screenX = x * CELL_SIZE;
+                    const screenY = y * CELL_SIZE;
+                    
+                    if (gameState.maze[y][x] === 1) {
+                        ctx.fillStyle = '#333';
+                        ctx.fillRect(screenX, screenY, CELL_SIZE, CELL_SIZE);
+                        ctx.strokeStyle = '#555';
+                        ctx.strokeRect(screenX, screenY, CELL_SIZE, CELL_SIZE);
+                    }
+                }
+            }
+            
+            // Apply darkness effect
+            if (!gameState.flashlightOn) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, MAZE_WIDTH * CELL_SIZE, MAZE_HEIGHT * CELL_SIZE);
+            }
+            
+            // Render flashlight cone
+            if (gameState.flashlightOn) {
+                const gradient = ctx.createRadialGradient(
+                    gameState.player.x * CELL_SIZE,
+                    gameState.player.y * CELL_SIZE,
+                    0,
+                    gameState.player.x * CELL_SIZE,
+                    gameState.player.y * CELL_SIZE,
+                    VISION_RANGE * CELL_SIZE
+                );
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(
+                    gameState.player.x * CELL_SIZE,
+                    gameState.player.y * CELL_SIZE,
+                    VISION_RANGE * CELL_SIZE,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+            
+            // Render keys
+            gameState.keys.forEach(key => {
+                const distance = Math.sqrt(
+                    Math.pow(key.x - gameState.player.x, 2) + 
+                    Math.pow(key.y - gameState.player.y, 2)
+                );
+                
+                if (gameState.flashlightOn || distance < 2) {
+                    ctx.fillStyle = '#ffd700';
+                    ctx.strokeStyle = '#ffed4a';
+                    ctx.lineWidth = 2;
+                    
+                    const keyX = key.x * CELL_SIZE + CELL_SIZE / 2;
+                    const keyY = key.y * CELL_SIZE + CELL_SIZE / 2;
+                    
+                    ctx.beginPath();
+                    ctx.arc(keyX, keyY, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Key glint effect
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(keyX - 2, keyY - 2, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+            
+            // Render doors
+            gameState.doors.forEach(door => {
+                const distance = Math.sqrt(
+                    Math.pow(door.x - gameState.player.x, 2) + 
+                    Math.pow(door.y - gameState.player.y, 2)
+                );
+                
+                if (gameState.flashlightOn || distance < 2) {
+                    ctx.fillStyle = '#8b4513';
+                    ctx.strokeStyle = '#a0522d';
+                    ctx.lineWidth = 2;
+                    
+                    const doorX = door.x * CELL_SIZE;
+                    const doorY = door.y * CELL_SIZE;
+                    
+                    ctx.fillRect(doorX, doorY, CELL_SIZE, CELL_SIZE);
+                    ctx.strokeRect(doorX, doorY, CELL_SIZE, CELL_SIZE);
+                    
+                    // Door handle
+                    ctx.fillStyle = '#ffd700';
+                    ctx.beginPath();
+                    ctx.arc(doorX + CELL_SIZE - 5, doorY + CELL_SIZE / 2, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+            
+            // Render exit
+            const exitDistance = Math.sqrt(
+                Math.pow(gameState.exit.x - gameState.player.x, 2) + 
+                Math.pow(gameState.exit.y - gameState.player.y, 2)
+            );
+            
+            if (gameState.flashlightOn || exitDistance < 3) {
+                ctx.fillStyle = '#00ff00';
+                ctx.strokeStyle = '#00cc00';
+                ctx.lineWidth = 3;
+                
+                const exitX = gameState.exit.x * CELL_SIZE;
+                const exitY = gameState.exit.y * CELL_SIZE;
+                
+                ctx.strokeRect(exitX, exitY, CELL_SIZE, CELL_SIZE);
+                
+                // Exit arrow
+                ctx.fillStyle = '#00ff00';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('🚪', exitX + CELL_SIZE / 2, exitY + CELL_SIZE / 2 + 5);
+            }
+            
+            // Render guards
+            gameState.guards.forEach(guard => {
+                const distance = Math.sqrt(
+                    Math.pow(guard.x - gameState.player.x, 2) + 
+                    Math.pow(guard.y - gameState.player.y, 2)
+                );
+                
+                if (gameState.flashlightOn || distance < 3) {
+                    const guardX = guard.x * CELL_SIZE;
+                    const guardY = guard.y * CELL_SIZE;
+                    
+                    // Guard body
+                    ctx.fillStyle = guard.alert ? '#ff0000' : '#cc0000';
+                    ctx.strokeStyle = guard.alert ? '#ff6666' : '#990000';
+                    ctx.lineWidth = 2;
+                    
+                    ctx.beginPath();
+                    ctx.arc(guardX, guardY, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Guard vision cone
+                    if (guard.alert) {
+                        ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+                        ctx.beginPath();
+                        ctx.arc(guardX, guardY, VISION_RANGE * CELL_SIZE, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // Guard direction indicator
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('👁️', guardX, guardY + 4);
+                }
+            });
+            
+            // Render player
+            const playerX = gameState.player.x * CELL_SIZE;
+            const playerY = gameState.player.y * CELL_SIZE;
+            
+            ctx.fillStyle = gameState.player.crouching ? '#4a90e2' : '#007bff';
+            ctx.strokeStyle = gameState.player.running ? '#ffff00' : '#0056b3';
+            ctx.lineWidth = 3;
+            
+            ctx.beginPath();
+            ctx.arc(playerX, playerY, gameState.player.crouching ? 6 : 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Player indicator
+            ctx.fillStyle = '#fff';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(gameState.player.crouching ? '🤫' : '🕵️', playerX, playerY + 4);
+            
+            ctx.restore();
+        }
+        
+        // Main game loop
+        function gameLoop() {
+            if (!gameState.gameRunning) return;
+            
+            updatePlayer();
+            updateGuards();
+            updateTimer();
+            updateHUD();
+            render();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Event listeners
+        function setupEventListeners() {
+            // Keyboard controls
+            document.addEventListener('keydown', (e) => {
+                gameState.keysPressed[e.key] = true;
+                
+                if (e.key === 'f' || e.key === 'F') {
+                    if (gameState.player.flashlight > 0) {
+                        gameState.flashlightOn = !gameState.flashlightOn;
+                    }
+                }
+                
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    gameState.player.crouching = !gameState.player.crouching;
+                }
+            });
+            
+            document.addEventListener('keyup', (e) => {
+                gameState.keysPressed[e.key] = false;
+            });
+            
+            // Mobile controls
+            document.querySelectorAll('.control-btn').forEach(btn => {
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const action = btn.dataset.action;
+                    
+                    switch(action) {
+                        case 'up':
+                            gameState.keysPressed['ArrowUp'] = true;
+                            break;
+                        case 'down':
+                            gameState.keysPressed['ArrowDown'] = true;
+                            break;
+                        case 'left':
+                            gameState.keysPressed['ArrowLeft'] = true;
+                            break;
+                        case 'right':
+                            gameState.keysPressed['ArrowRight'] = true;
+                            break;
+                        case 'flashlight':
+                            if (gameState.player.flashlight > 0) {
+                                gameState.flashlightOn = !gameState.flashlightOn;
+                            }
+                            break;
+                        case 'crouch':
+                            gameState.player.crouching = !gameState.player.crouching;
+                            break;
+                    }
+                });
+                
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    const action = btn.dataset.action;
+                    
+                    switch(action) {
+                        case 'up':
+                            gameState.keysPressed['ArrowUp'] = false;
+                            break;
+                        case 'down':
+                            gameState.keysPressed['ArrowDown'] = false;
+                            break;
+                        case 'left':
+                            gameState.keysPressed['ArrowLeft'] = false;
+                            break;
+                        case 'right':
+                            gameState.keysPressed['ArrowRight'] = false;
+                            break;
+                    }
+                });
+            });
+            
+            // Prevent context menu on mobile
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                // Adjust canvas size if needed
+                const container = document.querySelector('.game-container');
+                const maxWidth = Math.min(window.innerWidth - 40, 800);
+                const maxHeight = Math.min(window.innerHeight - 40, 600);
+                
+                canvas.width = maxWidth;
+                canvas.height = maxHeight;
+            });
+        }
+        
+        // Initialize game on page load
+        window.addEventListener('load', () => {
+            initGame();
+        });
+    </script>
+</body>
+</html>
+                

@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4K Wallpaper Studio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            min-height: 100vh;
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        .header {
+            padding: 2rem;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            animation: glow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 20px rgba(255, 107, 107, 0.5)); }
+            to { filter: drop-shadow(0 0 30px rgba(78, 205, 196, 0.8)); }
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            margin-bottom: 2rem;
+        }
+
+        .search-container {
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            border: none;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1.1rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #4ecdc4;
+            box-shadow: 0 0 30px rgba(78, 205, 196, 0.3);
+        }
+
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-btn.active {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border-color: transparent;
+        }
+
+        .wallpaper-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .wallpaper-card {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .wallpaper-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .wallpaper-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .wallpaper-card:hover .wallpaper-image {
+            transform: scale(1.1);
+        }
+
+        .wallpaper-info {
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        .wallpaper-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: white;
+        }
+
+        .wallpaper-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .resolution-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .live-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            font-size: 0.8rem;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .download-btn {
+            width: 100%;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(45deg, #4ecdc4, #45b7d1);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn:hover {
+            background: linear-gradient(45deg, #45b7d1, #4ecdc4);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78, 205, 196, 0.4);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 20px;
+            overflow: hidden;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        .modal-image {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .modal-video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .close-modal:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .floating-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #4ecdc4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .wallpaper-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                gap: 1rem;
+                padding: 1rem;
+            }
+            
+            .controls {
+                gap: 0.5rem;
+            }
+            
+            .control-btn {
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-particles"></div>
+    
+    <div class="app-container">
+        <header class="header">
+            <h1>4K Wallpaper Studio</h1>
+            <p class="subtitle">Premium 4K & Live Wallpapers for Your Desktop</p>
+            
+            <div class="search-container">
+                <input type="text" class="search-input" placeholder="Search wallpapers... (nature, space, abstract, etc.)" id="searchInput">
+            </div>
+            
+            <div class="controls">
+                <button class="control-btn active" data-category="all">All</button>
+                <button class="control-btn" data-category="nature">Nature</button>
+                <button class="control-btn" data-category="space">Space</button>
+                <button class="control-btn" data-category="abstract">Abstract</button>
+                <button class="control-btn" data-category="city">City</button>
+                <button class="control-btn" data-category="live">Live</button>
+            </div>
+        </header>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Loading amazing wallpapers...</p>
+        </div>
+        
+        <div class="wallpaper-grid" id="wallpaperGrid">
+            <!-- Wallpapers will be loaded here -->
+        </div>
+    </div>
+    
+    <div class="modal" id="modal">
+        <button class="close-modal" id="closeModal">&times;</button>
+        <div class="modal-content">
+            <img class="modal-image" id="modalImage" alt="Wallpaper Preview">
+            <video class="modal-video" id="modalVideo" controls loop style="display: none;">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </div>
+
+    <script>
+        // Wallpaper data with high-quality sources
+        const wallpapers = [
+            {
+                id: 1,
+                title: "Aurora Borealis",
+                category: "nature",
+                resolution: "4K",
+                type: "static",
+                thumbnail: "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=400&h=300&fit=crop",
+                fullsize: "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=3840&h=2160&fit=crop"
+            },
+            {
+                id: 2,
+                title: "Galaxy Nebula",
+                category: "space",
+                resolution: "4K",
+                type: "static",
+                thumbnail: "https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400&h=300&fit=crop",
+                fullsize: "https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=3840&h=2160&fit=crop"
+            },
+            {
+                id: 3,
+                title: "Flowing Abstract",
+                category: "abstract",
+                resolution: "4K",
+                type: "live",
+                thumbnail: "https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=400&h=300&fit=crop",
+                fullsize: "https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=3840&h=2160&fit=crop",
+                video: "https://player.vimeo.com/external/374107402.hd.mp4?s=0c3d1d90a1b8e7f5a0c7b5a6b3c2d8e9f0a1b2c3&profile_id=174"
+            },
+            {
+                id: 4,
+                title: "Mountain Lake",
+                category: "nature",
+                resolution: "4K",
+                type: "static",
+                thumbnail: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop",
+                fullsize: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=3840&h=2160&fit=crop"
+            },
+            {
+                id: 5,
+                title: "Neon Cityscape",
+                category: "city",
+                resolution: "4K",
+                type: "static",
+                thumbnail: "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=400&h=300&fit=crop",
+                fullsize: "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=3840&h=2160&fit=crop"
+            },
+            {
+                id: 6,
+                title: "Ocean Waves",
+                category: "nature",
+                resolution: "4K",
+                type: "live",
+                thumbnail: "https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=400&h=300&fit=crop",
+                fullsize: "https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=3840&h=2160&fit=crop",
+                video: "https://player.vimeo.com/external/373196986.hd.mp4?s=1e7d9b5c6a4e8f2d0c3a1b7e9d5f6c8a4b2e0f1d&profile_id=174"
+            },
+            {
+                id: 7,
+                title: "Deep Space",
+                category: "space",
+                resolution: "4K",
+                type: "static",
+                thumbnail: "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?w=400&h=300&fit=crop",
+                fullsize: "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?w=3840&h=2160&fit=crop"
+            },
+            {
+                id: 8,
+                title: "Geometric Patterns",
+                category: "abstract",
+                resolution: "4K",
+                type: "static",
+                thumbnail: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&h=300&fit=crop",
+                fullsize: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=3840&h=2160&fit=crop"
+            },
+            {
+                id: 9,
+                title: "Tokyo Nights",
+                category: "city",
+                resolution: "4K",
+                type: "static",
+                thumbnail: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=300&fit=crop",
+                fullsize: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=3840&h=2160&fit=crop"
+            },
+            {
+                id: 10,
+                title: "Forest Sunrise",
+                category: "nature",
+                resolution: "4K",
+                type: "static",
+                thumbnail: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=300&fit=crop",
+                fullsize: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=3840&h=2160&fit=crop"
+            },
+            {
+                id: 11,
+                title: "Particle Storm",
+                category: "abstract",
+                resolution: "4K",
+                type: "live",
+                thumbnail: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=400&h=300&fit=crop",
+                fullsize: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=3840&h=2160&fit=crop",
+                video: "https://player.vimeo.com/external/373196987.hd.mp4?s=2f8e0a6b7c5d9e3f1a4b8e6c0d2f7a9b5c3e1f8d&profile_id=174"
+            },
+            {
+                id: 12,
+                title: "Spiral Galaxy",
+                category: "space",
+                resolution: "4K",
+                type: "static",
+                thumbnail: "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&h=300&fit=crop",
+                fullsize: "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=3840&h=2160&fit=crop"
+            }
+        ];
+
+        // DOM elements
+        const wallpaperGrid = document.getElementById('wallpaperGrid');
+        const searchInput = document.getElementById('searchInput');
+        const loading = document.getElementById('loading');
+        const modal = document.getElementById('modal');
+        const modalImage = document.getElementById('modalImage');
+        const modalVideo = document.getElementById('modalVideo');
+        const closeModal = document.getElementById('closeModal');
+
+        // State
+        let currentCategory = 'all';
+        let currentWallpapers = [...wallpapers];
+
+        // Initialize app
+        function init() {
+            createParticles();
+            renderWallpapers();
+            setupEventListeners();
+        }
+
+        // Create floating particles
+        function createParticles() {
+            const particleContainer = document.querySelector('.floating-particles');
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 6 + 's';
+                particle.style.animationDuration = (Math.random() * 4 + 4) + 's';
+                particleContainer.appendChild(particle);
+            }
+        }
+
+        // Render wallpapers
+        function renderWallpapers() {
+            loading.style.display = 'block';
+            
+            setTimeout(() => {
+                wallpaperGrid.innerHTML = '';
+                
+                currentWallpapers.forEach(wallpaper => {
+                    const card = createWallpaperCard(wallpaper);
+                    wallpaperGrid.appendChild(card);
+                });
+                
+                loading.style.display = 'none';
+            }, 500);
+        }
+
+        // Create wallpaper card
+        function createWallpaperCard(wallpaper) {
+            const card = document.createElement('div');
+            card.className = 'wallpaper-card';
+            card.innerHTML = `
+                <img src="${wallpaper.thumbnail}" alt="${wallpaper.title}" class="wallpaper-image">
+                <div class="wallpaper-info">
+                    <h3 class="wallpaper-title">${wallpaper.title}</h3>
+                    <div class="wallpaper-meta">
+                        <span class="resolution-badge">${wallpaper.resolution}</span>
+                        ${wallpaper.type === 'live' ? '<span class="live-badge">LIVE</span>' : ''}
+                    </div>
+                    <button class="download-btn" onclick="downloadWallpaper(${wallpaper.id})">
+                        ${wallpaper.type === 'live' ? 'View Live' : 'Download'}
+                    </button>
+                    <button class="download-btn" style="margin-top:8px;background:linear-gradient(45deg,#45b7d1,#4ecdc4);color:#fff;" onclick="setAsDesktopWallpaper('${wallpaper.fullsize}')">
+                        Set as Desktop
+                    </button>
+                </div>
+            `;
+            
+            card.addEventListener('click', () => openModal(wallpaper));
+            return card;
+        }
+
+        // Open modal
+        function openModal(wallpaper) {
+            modal.style.display = 'block';
+            
+            if (wallpaper.type === 'live' && wallpaper.video) {
+                modalImage.style.display = 'none';
+                modalVideo.style.display = 'block';
+                modalVideo.src = wallpaper.video;
+            } else {
+                modalVideo.style.display = 'none';
+                modalImage.style.display = 'block';
+                modalImage.src = wallpaper.fullsize;
+            }
+        }
+
+        // Close modal
+        function closeModalHandler() {
+            modal.style.display = 'none';
+            modalVideo.pause();
+            modalVideo.src = '';
+        }
+
+        // Download wallpaper
+        function downloadWallpaper(id) {
+            const wallpaper = wallpapers.find(w => w.id === id);
+            if (wallpaper) {
+                const link = document.createElement('a');
+                link.href = wallpaper.fullsize;
+                link.download = `${wallpaper.title.replace(/\s+/g, '_')}_4K.jpg`;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        // Filter wallpapers
+        function filterWallpapers() {
+            const searchTerm = searchInput.value.toLowerCase();
+            
+            currentWallpapers = wallpapers.filter(wallpaper => {
+                const matchesCategory = currentCategory === 'all' || wallpaper.category === currentCategory;
+                const matchesSearch = searchTerm === '' || 
+                    wallpaper.title.toLowerCase().includes(searchTerm) ||
+                    wallpaper.category.toLowerCase().includes(searchTerm);
+                
+                return matchesCategory && matchesSearch;
+            });
+            
+            renderWallpapers();
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Category buttons
+            document.querySelectorAll('.control-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    // Remove active class from all buttons
+                    document.querySelectorAll('.control-btn').forEach(b => b.classList.remove('active'));
+                    
+                    // Add active class to clicked button
+                    e.target.classList.add('active');
+                    
+                    // Update current category
+                    currentCategory = e.target.dataset.category;
+                    
+                    // Filter wallpapers
+                    filterWallpapers();
+                });
+            });
+
+            // Search input
+            searchInput.addEventListener('input', filterWallpapers);
+
+            // Modal close
+            closeModal.addEventListener('click', closeModalHandler);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModalHandler();
+                }
+            });
+
+            // Escape key to close modal
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal.style.display === 'block') {
+                    closeModalHandler();
+                }
+            });
+        }
+
+        // Add this function to send wallpaper to parent OS
+        function setAsDesktopWallpaper(url) {
+            window.parent.postMessage({ type: 'set-wallpaper', url }, '*');
+        }
+
+        // Initialize the app
+        init();
+    </script>
+</body>
+</html>
